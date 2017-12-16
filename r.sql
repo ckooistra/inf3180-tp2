@@ -3,7 +3,9 @@ INSERT INTO SessionUQAM VALUES(1,'01/01/2017','01/05/2017');
 INSERT INTO SessionUQAM VALUES(2,'01/09/2017','30/12/2017');
 
 UPDATE SessionUQAM SET dateFin ='02/05/2017' WHERE codeSession = '1';
-
+UPDATE PROFESSEUR SET minCours = 3 WHERE codeProfesseur = '1';
+UPDATE PROFESSEUR SET minCours = 3 WHERE codeProfesseur = '1';
+UPDATE PROFESSEUR SET minCours = 2 WHERE codeProfesseur = '4';
 --Professeurs
 INSERT INTO Professeur VALUES('1', 'Picard', 'Jean-Luc', 4);
 INSERT INTO Professeur VALUES('2', 'Riker', 'Will', 4);
@@ -76,7 +78,7 @@ select * from SYS.USER_ERRORS where NAME = 'EtudiantsExcellence' and type = 'PRO
 --SELECT note FROM Inscription WHERE codePermanent = 1 AND codeSession = 1;
 --SELECT note FROM Inscription WHERE codePermanent = 2 AND codeSession = 1;
 --SELECT note FROM Inscription WHERE codePermanent = 1 AND codeSession = 1;
---EXECUE EtudiantsExcellence(1);
+--EXECUTE EtudiantsExcellence(1);
 --EXEC DBMS_OUTPUT.PUT_LINE(sys.diutil.bool_to_int(EXCELLENCE('1','1')));
 --EXEC DBMS_OUTPUT.PUT_LINE(sys.diutil.bool_to_int(EXCELLENCE('2','1')));
 EXEC DBMS_OUTPUT.PUT_LINE('sadfasdfasdf');
@@ -86,6 +88,10 @@ SELECT * FROM Inscription;
 SELECT * FROM GroupeCours;
 SELECT * FROM Cours;
 SELECT p.nom,p.prenom,gc.sigle,gc.codeSession,gc.noGroupe,su.dateDebut,su.dateFin FROM Professeur p, GroupeCours gc, SessionUQAM su WHERE p.codeProfesseur = '3' AND p.codeProfesseur=gc.codeProfesseur AND gc.codeSession = su.codeSession;
+
+SELECT codeSession, dateAbandon, dateDebut, dateFin, dateInscription FROM Inscription NATURAL JOIN SessionUQAM;
+
+
 --Removed
 select * from SYS.USER_ERRORS where NAME = 'EXCELLENCE' and type = 'FUNCTION';
 -- C.1 Ajout de la colonne minCours et ajout de la contrainte qui s'assure d'un minimum de 4 cours
