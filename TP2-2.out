@@ -1,0 +1,337 @@
+SQL> PROMPT Creation des tables
+Creation des tables
+SQL> 
+SQL> SET ECHO ON
+SQL> DROP TABLE Inscription
+  2  /
+
+Table dropped.
+
+SQL> DROP TABLE GroupeCours
+  2  /
+
+Table dropped.
+
+SQL> DROP TABLE Prealable
+  2  /
+
+Table dropped.
+
+SQL> DROP TABLE Cours
+  2  /
+
+Table dropped.
+
+SQL> DROP TABLE SessionUQAM
+  2  /
+
+Table dropped.
+
+SQL> DROP TABLE Etudiant
+  2  /
+
+Table dropped.
+
+SQL> DROP TABLE Professeur
+  2  /
+
+Table dropped.
+
+SQL> 
+SQL> ALTER SESSION SET NLS_DATE_FORMAT = 'DD/MM/YYYY'
+  2  /
+
+Session altered.
+
+SQL> 
+SQL> CREATE TABLE Cours
+  2  (sigle	     CHAR(7)	     NOT NULL,
+  3   titre	     VARCHAR(50)     NOT NULL,
+  4   nbCredits      INTEGER	     NOT NULL,
+  5   CONSTRAINT ClePrimaireCours PRIMARY KEY	     (sigle)
+  6  )
+  7  /
+
+Table created.
+
+SQL> 
+SQL> CREATE TABLE Prealable
+  2  (sigle	     CHAR(7)	     NOT NULL,
+  3   siglePrealable CHAR(7)	     NOT NULL,
+  4   CONSTRAINT ClePrimairePrealable PRIMARY KEY    (sigle,siglePrealable),
+  5   CONSTRAINT CEsigleRefCours FOREIGN KEY	     (sigle) REFERENCES Cours,
+  6   CONSTRAINT CEsiglePrealableRefCours FOREIGN KEY	     (siglePrealable) REFERENCES Cours(sigle)
+  7  )
+  8  /
+
+Table created.
+
+SQL> 
+SQL> CREATE TABLE SessionUQAM
+  2  (codeSession    INTEGER	     NOT NULL,
+  3   dateDebut      DATE	     NOT NULL,
+  4   dateFin	     DATE	     NOT NULL,
+  5   CONSTRAINT ClePrimaireSessionUQAM PRIMARY KEY  (codeSession)
+  6   --C.2 Date de la fin de session doit être exactement 120 jours après le début de la session
+  7   --CONSTRAINT semester_verif CHECK (dateFin = dateDebut + 120)
+  8  )
+  9  /
+
+Table created.
+
+SQL> 
+SQL> CREATE TABLE Professeur
+  2  (codeProfesseur	     CHAR(5) NOT NULL,
+  3   nom		     VARCHAR(10)     NOT NULL,
+  4   prenom	     VARCHAR(10)     NOT NULL,
+  5   -- C.1 Ajout de la colonne minCours et ajout de la contrainte qui s'assure d'un minimum de 4 cours
+  6   minCours INTEGER NOT NULL,
+  7   CONSTRAINT ClePrimaireProfesseur PRIMARY KEY   (codeProfesseur),
+  8   CONSTRAINT minCoursContrainte CHECK ( minCours >= 4 )
+  9  )
+ 10  /
+
+Table created.
+
+SQL> 
+SQL> CREATE TABLE GroupeCours
+  2  (sigle	     CHAR(7)	     NOT NULL,
+  3   noGroupe	     INTEGER	     NOT NULL,
+  4   codeSession    INTEGER	     NOT NULL,
+  5   maxInscriptions	     INTEGER	     NOT NULL,
+  6   codeProfesseur	     CHAR(5) NOT NULL,
+  7  CONSTRAINT ClePrimaireGroupeCours PRIMARY KEY   (sigle,noGroupe,codeSession),
+  8  CONSTRAINT CESigleGroupeRefCours FOREIGN KEY    (sigle) REFERENCES Cours,
+  9  CONSTRAINT CECodeSessionRefSessionUQAM FOREIGN KEY      (codeSession) REFERENCES SessionUQAM,
+ 10  CONSTRAINT CEcodeProfRefProfesseur FOREIGN KEY(codeProfesseur) REFERENCES Professeur
+ 11  )
+ 12  /
+
+Table created.
+
+SQL> 
+SQL> CREATE TABLE Etudiant
+  2  (codePermanent  CHAR(12)	     NOT NULL,
+  3   nom	     VARCHAR(10)     NOT NULL,
+  4   prenom	     VARCHAR(10)     NOT NULL,
+  5   codeProgramme  INTEGER,
+  6  CONSTRAINT ClePrimaireEtudiant PRIMARY KEY      (codePermanent)
+  7  )
+  8  /
+
+Table created.
+
+SQL> 
+SQL> CREATE TABLE Inscription
+  2  (codePermanent  CHAR(12)	     NOT NULL,
+  3   sigle	     CHAR(7)	     NOT NULL,
+  4   noGroupe	     INTEGER	     NOT NULL,
+  5   codeSession    INTEGER	     NOT NULL,
+  6   dateInscription DATE	     NOT NULL,
+  7   dateAbandon    DATE,
+  8   note	     INTEGER,
+  9  CONSTRAINT ClePrimaireInscription PRIMARY KEY   (codePermanent,sigle,noGroupe,codeSession),
+ 10  CONSTRAINT CERefGroupeCours FOREIGN KEY	     (sigle,noGroupe,codeSession) REFERENCES GroupeCours,
+ 11  CONSTRAINT CECodePermamentRefEtudiant FOREIGN KEY (codePermanent) REFERENCES Etudiant
+ 12  )
+ 13  /
+
+Table created.
+
+SQL> COMMIT
+  2  /
+
+Commit complete.
+
+SQL> PROMPT Contenu des tables
+Contenu des tables
+SQL> SELECT * FROM Cours
+  2  /
+
+no rows selected
+
+SQL> SELECT * FROM Prealable
+  2  /
+
+no rows selected
+
+SQL> SELECT * FROM SessionUQAM
+  2  /
+
+no rows selected
+
+SQL> SELECT * FROM Professeur
+  2  /
+
+no rows selected
+
+SQL> SELECT * FROM GroupeCours
+  2  /
+
+no rows selected
+
+SQL> SELECT * FROM Etudiant
+  2  /
+
+no rows selected
+
+SQL> SELECT * FROM Inscription
+  2  /
+
+no rows selected
+
+SQL> --Partie C2 Procédure PL/SQL
+SQL> CREATE OR REPLACE PROCEDURE TacheEnseignement
+  2  (cp GroupeCours.codeProfesseur % TYPE) AS
+  3  
+  4  CURSOR c_C2 IS
+  5  SELECT p.nom,p.prenom,gc.sigle,gc.codeSession,gc.noGroupe,su.dateDebut,su.dateFin FROM Professeur p, GroupeCours gc, SessionUQAM su WHERE p.codeProfesseur = cp AND p.codeProfesseur=gc.codeProfesseur AND gc.codeSession = su.codeSession;
+  6  BEGIN
+  7  FOR line IN c_C2
+  8  	     LOOP
+  9  		     DBMS_OUTPUT.PUT_LINE('Code Professeur: '||cp);
+ 10  		     DBMS_OUTPUT.PUT_LINE('Nom: '||line.nom);
+ 11  		     DBMS_OUTPUT.PUT_LINE('Prenom: '||line.prenom);
+ 12  		     DBMS_OUTPUT.PUT_LINE('Sigle Cours: '||line.sigle);
+ 13  		     DBMS_OUTPUT.PUT_LINE('Code Session: '||line.codeSession);
+ 14  		     DBMS_OUTPUT.PUT_LINE('No Groupe: '||line.codeSession);
+ 15  		     DBMS_OUTPUT.PUT_LINE('Date Début Session: '||line.dateDebut);
+ 16  		     DBMS_OUTPUT.PUT_LINE('Date Fin Session: '||line.dateFin);
+ 17  		     DBMS_OUTPUT.PUT_LINE('----------------------------------------------');
+ 18  
+ 19  	     END LOOP;
+ 20  END;
+ 21  /
+
+Procedure created.
+
+SQL> 
+SQL> CREATE OR REPLACE FUNCTION EXCELLENCE
+  2  (cp Etudiant.codePermanent % TYPE, sesh SessionUQAM.codeSession % TYPE)
+  3  RETURN BOOLEAN AS
+  4  
+  5  CURSOR c3 IS
+  6  SELECT note FROM Inscription WHERE codePermanent = cp AND codeSession = sesh;
+  7  BEGIN
+  8  FOR line IN c3
+  9  
+ 10  	     LOOP
+ 11  		     --DBMS_OUTPUT.PUT_LINE('Inscription note: '||line.note);
+ 12  		     IF line.note < 95 OR line.note IS NULL THEN
+ 13  			     --DBMS_OUTPUT.PUT_LINE('Inside false condition');
+ 14  			     RETURN FALSE;
+ 15  		     END IF;
+ 16  	     END LOOP;
+ 17  	     RETURN TRUE;
+ 18  END;
+ 19  /
+
+Function created.
+
+SQL> CREATE OR REPLACE PROCEDURE EtudiantsExcellence
+  2  (cs SessionUQAM.codeSession % TYPE) AS
+  3  --DECLARE
+  4  noOne BOOLEAN := TRUE;
+  5  CURSOR c_C2 IS
+  6  SELECT DISTINCT codePermanent FROM Inscription WHERE codeSession = cs;
+  7  
+  8  BEGIN
+  9  
+ 10  FOR line IN c_C2
+ 11  	     LOOP
+ 12  		     IF EXCELLENCE(line.codePermanent, cs) THEN
+ 13  			     DBMS_OUTPUT.PUT_LINE(line.codePermanent);
+ 14  			     noOne := FALSE;
+ 15  		     END IF;
+ 16  
+ 17  	     END LOOP;
+ 18  	     IF noOne = TRUE THEN
+ 19  		     RAISE_APPLICATION_ERROR(-20001, 'pas d’étudiants excellents pendant la session');
+ 20  	     END IF;
+ 21  END;
+ 22  /
+
+Procedure created.
+
+SQL> --Execution de script TP2-2R.sql pour populer la BDD
+SQL> -- SPOOL arreté pour l'execution
+SQL> SPOOL OFF;
+SQL> -----------------------------------------------------------------------------------
+SQL> --C.2 Procédure PL/SQL Execution de la procédure TacheExcellence
+SQL> EXECUTE TacheEnseignement(1);
+Code Professeur: 1                                                              
+Nom: Picard                                                                     
+Prenom: Jean-Luc                                                                
+Sigle Cours: 1                                                                  
+Code Session: 1                                                                 
+No Groupe: 1                                                                    
+Date Début Session: 01/01/2017                                                  
+Date Fin Session: 01/05/2017                                                    
+----------------------------------------------                                  
+Code Professeur: 1                                                              
+Nom: Picard                                                                     
+Prenom: Jean-Luc                                                                
+Sigle Cours: 1                                                                  
+Code Session: 2                                                                 
+No Groupe: 2                                                                    
+Date Début Session: 01/09/2017                                                  
+Date Fin Session: 30/12/2017                                                    
+----------------------------------------------                                  
+
+PL/SQL procedure successfully completed.
+
+SQL> 
+SQL> SELECT * FROM Inscription;
+
+CODEPERMANEN SIGLE     NOGROUPE CODESESSION DATEINSCRI DATEABANDO       NOTE    
+------------ ------- ---------- ----------- ---------- ---------- ----------    
+1            1                1           1 30/08/2017                    95    
+2            1                1           1 30/08/2017                    80    
+3            1                1           1 30/08/2017                   100    
+4            1                1           1 30/08/2017                    97    
+1            2                1           1 30/08/2017                   100    
+2            2                1           1 30/08/2017                    82    
+3            2                1           1 30/08/2017                   100    
+4            2                1           1 30/08/2017                    96    
+1            3                1           1 30/08/2017                    95    
+2            3                1           1 30/08/2017                    75    
+3            3                1           1 30/08/2017                   100    
+
+CODEPERMANEN SIGLE     NOGROUPE CODESESSION DATEINSCRI DATEABANDO       NOTE    
+------------ ------- ---------- ----------- ---------- ---------- ----------    
+4            3                1           1 30/08/2017                    62    
+3            5                2           1 30/08/2017                    97    
+3            1                2           1 30/08/2017                    95    
+1            1                1           2 30/08/2017                    57    
+2            1                1           2 30/08/2017                    80    
+3            1                1           2 30/08/2017                    10    
+4            1                1           2 30/08/2017                     9    
+1            2                1           2 30/08/2017                    10    
+2            2                1           2 30/08/2017                    82    
+3            2                1           2 30/08/2017                    85    
+4            2                1           2 30/08/2017                    90    
+
+22 rows selected.
+
+SQL> -----------------------------------------------------------------------------------
+SQL> --C.3Procédure et Fonction PL/SQL
+SQL> EXECUTE EtudiantsExcellence(1);
+3                                                                               
+1                                                                               
+
+PL/SQL procedure successfully completed.
+
+SQL> -----------------------------------------------------------------------------------
+SQL> EXECUTE EtudiantsExcellence(2);
+BEGIN EtudiantsExcellence(2); END;
+
+*
+ERROR at line 1:
+ORA-20001: pas d’étudiants excellents pendant la session
+ORA-06512: at "VADER.ETUDIANTSEXCELLENCE", line 19
+ORA-06512: at line 1 
+
+
+SQL> -----------------------------------------------------------------------------------
+SQL> 
+SQL> SPOOL OFF

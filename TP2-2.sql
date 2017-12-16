@@ -1,3 +1,4 @@
+SPOOL TP2-2.out
 PROMPT Creation des tables
 
 SET ECHO ON
@@ -92,97 +93,6 @@ CONSTRAINT CERefGroupeCours FOREIGN KEY 	(sigle,noGroupe,codeSession) REFERENCES
 CONSTRAINT CECodePermamentRefEtudiant FOREIGN KEY (codePermanent) REFERENCES Etudiant
 )
 /
---C2
-CREATE TRIGGER checkSessionDay
-
-
-BEFORE INSERT OR UPDATE ON SessionUQAM
-
-FOR EACH ROW
---WHEN (:NEW.dateFin < :NEW.dateDebut)
-BEGIN
-	IF :NEW.dateFin != :NEW.dateDebut + 120 THEN
-		RAISE_APPLICATION_ERROR(-20001, 'You cannot do that');
-		DBMS_OUTPUT.PUT_LINE('You cannot do that');
-	END IF;
-END;
-/
---C3
-CREATE TRIGGER cda
-BEFORE INSERT OR UPDATE OF dateAbandon ON Inscription
-
-REFERENCING
-	OLD as lb
-	NEW AS la
-FOR EACH ROW
-
-DECLARE
-	la_date_deb	DATE;
-	la_date_fin	DATE;
-BEGIN
-
-	SELECT dateDebut, dateFin INTO la_date_deb, la_date_fin FROM SessionUQAM WHERE codeSession = :la.codeSession;
-	IF :la.dateAbandon <  la_date_deb OR :la.dateAbandon > la_date_fin THEN
-		--RAISE_APPLICATION_ERROR(-20001, 'You cannot do that');
-		DBMS_OUTPUT.PUT('This is the message');
-	END IF;
-END;
-/
-COMMIT
-/
---C4
-CREATE TRIGGER di
-
-BEFORE INSERT OR UPDATE OF dateInscription ON Inscription
-REFERENCING
-	NEW AS la
-FOR EACH ROW
-DECLARE
-	la_date_deb	DATE;
-	la_date_fin	DATE;
-
-BEGIN
-	SELECT dateDebut, dateFin INTO la_date_deb, la_date_fin FROM SessionUQAM WHERE codeSession = :la.codeSession;
-	IF :la.dateInscription > la_date_deb THEN
-		DBMS_OUTPUT.PUT_LINE('You can do that like a boss!'); 
-		DBMS_OUTPUT.PUT_LINE(la_date_deb); 
-	END IF;
-END;
-/
---C5
-CREATE TRIGGER adjust_Inscription
-BEFORE UPDATE OF codePermanent,sigle,noGroupe,dateInscription ON Inscription
-
-BEGIN
-	RAISE_APPLICATION_ERROR(-20001, 'You cannot do that');
-END;
-/
---C6
-CREATE TRIGGER adjust_note
-BEFORE UPDATE OF note ON Inscription
-REFERENCING
-	NEW AS lap
-	OLD AS lav
-FOR EACH ROW
-BEGIN
-	IF :lav.note IS NULL THEN
-		DBMS_OUTPUT.PUT_LINE('Absence lors de l’épreuve'); 
-
-	ELSIF :lap.note > :lav.note*1.3 THEN
-		DBMS_OUTPUT.PUT_LINE('Valeur changé pour être <= 1.3*valeur de mise à jour'); 
-		:lap.note := :lav.note*1.3;
-	END IF;	
-END;
-/
---DECLARE 
---	la_date_debut 	DATE;
---	la_date_fin	DATE;
-
-	--DBMS_OUTPUT.PUT('This is the message');
-	--SELECT dateDebut, dateFin INTO la_date_debut, la_date_fin FROM SessionUQAM WHERE codeSession = :OLD.codeSession;
---CREATE FUNCTION checkDateAbandonContreDateSession()
---returns int
-
 COMMIT
 /
 PROMPT Contenu des tables
@@ -217,6 +127,7 @@ FOR line IN c_C2
 		DBMS_OUTPUT.PUT_LINE('No Groupe: '||line.codeSession);
 		DBMS_OUTPUT.PUT_LINE('Date Début Session: '||line.dateDebut);
 		DBMS_OUTPUT.PUT_LINE('Date Fin Session: '||line.dateFin);
+		DBMS_OUTPUT.PUT_LINE('----------------------------------------------');
 
 	END LOOP;
 END;
@@ -232,9 +143,9 @@ BEGIN
 FOR line IN c3
 
 	LOOP
-		DBMS_OUTPUT.PUT_LINE('Inscription note: '||line.note);
+		--DBMS_OUTPUT.PUT_LINE('Inscription note: '||line.note);
 		IF line.note < 95 OR line.note IS NULL THEN 
-			DBMS_OUTPUT.PUT_LINE('Inside false condition');
+			--DBMS_OUTPUT.PUT_LINE('Inside false condition');
 			RETURN FALSE;
 		END IF;
 	END LOOP;
@@ -246,11 +157,10 @@ CREATE OR REPLACE PROCEDURE EtudiantsExcellence
 --DECLARE
 noOne BOOLEAN := TRUE;
 CURSOR c_C2 IS
-SELECT codePermanent FROM Inscription WHERE codeSession = cs; 
+SELECT DISTINCT codePermanent FROM Inscription WHERE codeSession = cs; 
 
 BEGIN
 
-	DBMS_OUTPUT.PUT_LINE('test');
 FOR line IN c_C2
 	LOOP
 		IF EXCELLENCE(line.codePermanent, cs) THEN
@@ -260,7 +170,25 @@ FOR line IN c_C2
 
 	END LOOP;
 	IF noOne = TRUE THEN
-		RAISE_APPLICATION_ERROR(-20001, 'You cannot do that');
+		RAISE_APPLICATION_ERROR(-20001, 'pas d’étudiants excellents pendant la session');
 	END IF;
 END;
 /
+--Execution de script TP2-2R.sql pour populer la BDD
+-- SPOOL arreté pour l'execution
+SPOOL OFF;
+@TP2-2R.sql
+SPOOL TP2-2.out append;
+-----------------------------------------------------------------------------------
+--C.2 Procédure PL/SQL Execution de la procédure TacheExcellence
+EXECUTE TacheEnseignement(1);
+
+SELECT * FROM Inscription;
+-----------------------------------------------------------------------------------
+--C.3Procédure et Fonction PL/SQL
+EXECUTE EtudiantsExcellence(1);
+-----------------------------------------------------------------------------------
+EXECUTE EtudiantsExcellence(2);
+-----------------------------------------------------------------------------------
+
+SPOOL OFF

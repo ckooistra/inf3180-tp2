@@ -1,3 +1,4 @@
+SPOOL TP2-1.out
 PROMPT Creation des tables
 
 SET ECHO ON
@@ -290,7 +291,7 @@ UPDATE Inscription SET sigle = '3' WHERE codePermanent = '4' AND sigle ='3' AND 
 
 ALTER TRIGGER c5 DISABLE;
 
---Démonstration de la Contrainte 5
+--Démonstration de la Contrainte 6
 --Inserer valeurs initiales dans le bdd
 UPDATE Inscription SET note = 99 WHERE codePermanent = '1' AND sigle = '2' AND noGroupe = 1;
 UPDATE Inscription SET note = 80 WHERE codePermanent = '2' AND sigle = '2' AND noGroupe = 1;
@@ -300,3 +301,5 @@ UPDATE Inscription SET note = 95 WHERE codePermanent = '1' AND sigle = '1' AND n
 SELECT * FROM Inscription;
 UPDATE Inscription SET note = 140 WHERE codePermanent = '1' AND sigle = '2' AND noGroupe = 1;
 SELECT * FROM Inscription;
+
+SPOOL OFF;

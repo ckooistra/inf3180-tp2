@@ -1,0 +1,735 @@
+SQL> PROMPT Creation des tables
+Creation des tables
+SQL> 
+SQL> SET ECHO ON
+SQL> DROP TABLE Inscription
+  2  /
+
+Table dropped.
+
+SQL> DROP TABLE GroupeCours
+  2  /
+
+Table dropped.
+
+SQL> DROP TABLE Prealable
+  2  /
+
+Table dropped.
+
+SQL> DROP TABLE Cours
+  2  /
+
+Table dropped.
+
+SQL> DROP TABLE SessionUQAM
+  2  /
+
+Table dropped.
+
+SQL> DROP TABLE Etudiant
+  2  /
+
+Table dropped.
+
+SQL> DROP TABLE Professeur
+  2  /
+
+Table dropped.
+
+SQL> 
+SQL> ALTER SESSION SET NLS_DATE_FORMAT = 'DD/MM/YYYY'
+  2  /
+
+Session altered.
+
+SQL> 
+SQL> CREATE TABLE Cours
+  2  (sigle	     CHAR(7)	     NOT NULL,
+  3   titre	     VARCHAR(50)     NOT NULL,
+  4   nbCredits      INTEGER	     NOT NULL,
+  5   CONSTRAINT ClePrimaireCours PRIMARY KEY	     (sigle)
+  6  )
+  7  /
+
+Table created.
+
+SQL> 
+SQL> CREATE TABLE Prealable
+  2  (sigle	     CHAR(7)	     NOT NULL,
+  3   siglePrealable CHAR(7)	     NOT NULL,
+  4   CONSTRAINT ClePrimairePrealable PRIMARY KEY    (sigle,siglePrealable),
+  5   CONSTRAINT CEsigleRefCours FOREIGN KEY	     (sigle) REFERENCES Cours,
+  6   CONSTRAINT CEsiglePrealableRefCours FOREIGN KEY	     (siglePrealable) REFERENCES Cours(sigle)
+  7  )
+  8  /
+
+Table created.
+
+SQL> 
+SQL> CREATE TABLE SessionUQAM
+  2  (codeSession    INTEGER	     NOT NULL,
+  3   dateDebut      DATE	     NOT NULL,
+  4   dateFin	     DATE	     NOT NULL,
+  5   CONSTRAINT ClePrimaireSessionUQAM PRIMARY KEY  (codeSession)
+  6   --C.2 Date de la fin de session doit être exactement 120 jours après le début de la session
+  7   --CONSTRAINT semester_verif CHECK (dateFin = dateDebut + 120)
+  8  )
+  9  /
+
+Table created.
+
+SQL> 
+SQL> CREATE TABLE Professeur
+  2  (codeProfesseur	     CHAR(5) NOT NULL,
+  3   nom		     VARCHAR(10)     NOT NULL,
+  4   prenom	     VARCHAR(10)     NOT NULL,
+  5   -- C.1 Ajout de la colonne minCours et ajout de la contrainte qui s'assure d'un minimum de 4 cours
+  6   minCours INTEGER NOT NULL,
+  7   CONSTRAINT ClePrimaireProfesseur PRIMARY KEY   (codeProfesseur),
+  8   CONSTRAINT minCoursContrainte CHECK ( minCours >= 4 )
+  9  )
+ 10  /
+
+Table created.
+
+SQL> 
+SQL> CREATE TABLE GroupeCours
+  2  (sigle	     CHAR(7)	     NOT NULL,
+  3   noGroupe	     INTEGER	     NOT NULL,
+  4   codeSession    INTEGER	     NOT NULL,
+  5   maxInscriptions	     INTEGER	     NOT NULL,
+  6   codeProfesseur	     CHAR(5) NOT NULL,
+  7  CONSTRAINT ClePrimaireGroupeCours PRIMARY KEY   (sigle,noGroupe,codeSession),
+  8  CONSTRAINT CESigleGroupeRefCours FOREIGN KEY    (sigle) REFERENCES Cours,
+  9  CONSTRAINT CECodeSessionRefSessionUQAM FOREIGN KEY      (codeSession) REFERENCES SessionUQAM,
+ 10  CONSTRAINT CEcodeProfRefProfesseur FOREIGN KEY(codeProfesseur) REFERENCES Professeur
+ 11  )
+ 12  /
+
+Table created.
+
+SQL> 
+SQL> CREATE TABLE Etudiant
+  2  (codePermanent  CHAR(12)	     NOT NULL,
+  3   nom	     VARCHAR(10)     NOT NULL,
+  4   prenom	     VARCHAR(10)     NOT NULL,
+  5   codeProgramme  INTEGER,
+  6  CONSTRAINT ClePrimaireEtudiant PRIMARY KEY      (codePermanent)
+  7  )
+  8  /
+
+Table created.
+
+SQL> 
+SQL> CREATE TABLE Inscription
+  2  (codePermanent  CHAR(12)	     NOT NULL,
+  3   sigle	     CHAR(7)	     NOT NULL,
+  4   noGroupe	     INTEGER	     NOT NULL,
+  5   codeSession    INTEGER	     NOT NULL,
+  6   dateInscription DATE	     NOT NULL,
+  7   dateAbandon    DATE,
+  8   note	     INTEGER,
+  9  CONSTRAINT ClePrimaireInscription PRIMARY KEY   (codePermanent,sigle,noGroupe,codeSession),
+ 10  CONSTRAINT CERefGroupeCours FOREIGN KEY	     (sigle,noGroupe,codeSession) REFERENCES GroupeCours,
+ 11  CONSTRAINT CECodePermamentRefEtudiant FOREIGN KEY (codePermanent) REFERENCES Etudiant
+ 12  )
+ 13  /
+
+Table created.
+
+SQL> --C2
+SQL> CREATE TRIGGER c2
+  2  
+  3  
+  4  BEFORE INSERT OR UPDATE ON SessionUQAM
+  5  
+  6  FOR EACH ROW
+  7  --WHEN (:NEW.dateFin < :NEW.dateDebut)
+  8  BEGIN
+  9  	     IF :NEW.dateFin != :NEW.dateDebut + 120 THEN
+ 10  		     --RAISE_APPLICATION_ERROR(-20001, 'You cannot do that');
+ 11  		     DBMS_OUTPUT.PUT_LINE('Days in semester is not equal to 120!');
+ 12  	     END IF;
+ 13  END;
+ 14  /
+
+Trigger created.
+
+SQL> --C3
+SQL> CREATE TRIGGER c3
+  2  BEFORE INSERT OR UPDATE OF dateAbandon ON Inscription
+  3  
+  4  REFERENCING
+  5  	     OLD as lb
+  6  	     NEW AS la
+  7  FOR EACH ROW
+  8  
+  9  DECLARE
+ 10  	     la_date_deb     DATE;
+ 11  	     la_date_fin     DATE;
+ 12  BEGIN
+ 13  
+ 14  	     SELECT dateDebut, dateFin INTO la_date_deb, la_date_fin FROM SessionUQAM WHERE codeSession = :la.codeSession;
+ 15  	     IF :la.dateAbandon <  la_date_deb OR :la.dateAbandon > la_date_fin THEN
+ 16  		     RAISE_APPLICATION_ERROR(-20001, 'Date abandon doit tomber entre les dates de la session');
+ 17  		     --DBMS_OUTPUT.PUT('This is the message');
+ 18  	     END IF;
+ 19  END;
+ 20  /
+
+Trigger created.
+
+SQL> COMMIT
+  2  /
+
+Commit complete.
+
+SQL> --C4
+SQL> CREATE TRIGGER c4
+  2  
+  3  BEFORE INSERT OR UPDATE OF dateInscription ON Inscription
+  4  REFERENCING
+  5  	     NEW AS la
+  6  FOR EACH ROW
+  7  DECLARE
+  8  	     la_date_deb     DATE;
+  9  	     la_date_fin     DATE;
+ 10  
+ 11  BEGIN
+ 12  	     SELECT dateDebut, dateFin INTO la_date_deb, la_date_fin FROM SessionUQAM WHERE codeSession = :la.codeSession;
+ 13  	     IF :la.dateInscription > la_date_deb THEN
+ 14  		     DBMS_OUTPUT.PUT_LINE('Date doit être inférieure à la date de début');
+ 15  		     DBMS_OUTPUT.PUT_LINE(la_date_deb);
+ 16  		     RAISE_APPLICATION_ERROR(-20001, 'illegal date');
+ 17  
+ 18  	     END IF;
+ 19  END;
+ 20  /
+
+Trigger created.
+
+SQL> --C5
+SQL> CREATE TRIGGER c5
+  2  BEFORE UPDATE OF codePermanent,sigle,noGroupe,codeSession,dateInscription,dateAbandon ON Inscription
+  3  
+  4  BEGIN
+  5  	     RAISE_APPLICATION_ERROR(-20001, 'You cannot do that');
+  6  END;
+  7  /
+
+Trigger created.
+
+SQL> --C6
+SQL> CREATE TRIGGER c6
+  2  BEFORE UPDATE OF note ON Inscription
+  3  REFERENCING
+  4  	     NEW AS lap
+  5  	     OLD AS lav
+  6  FOR EACH ROW
+  7  BEGIN
+  8  	     IF :lav.note IS NULL THEN
+  9  		     DBMS_OUTPUT.PUT_LINE('Absence lors de l’épreuve');
+ 10  
+ 11  	     ELSIF :lap.note > :lav.note*1.3 THEN
+ 12  		     DBMS_OUTPUT.PUT_LINE('Valeur changé pour être <= 1.3*valeur de mise à jour');
+ 13  		     :lap.note := :lav.note*1.3;
+ 14  	     END IF;
+ 15  END;
+ 16  /
+
+Trigger created.
+
+SQL> COMMIT
+  2  /
+
+Commit complete.
+
+SQL> 
+SQL> INSERT INTO SessionUQAM VALUES(1,'01/01/2017','01/05/2017');
+
+1 row created.
+
+SQL> INSERT INTO SessionUQAM VALUES(2,'01/09/2017','30/12/2017');
+
+1 row created.
+
+SQL> 
+SQL> --Professeurs
+SQL> INSERT INTO Professeur VALUES('1', 'Picard', 'Jean-Luc', 4);
+
+1 row created.
+
+SQL> INSERT INTO Professeur VALUES('2', 'Riker', 'Will', 4);
+
+1 row created.
+
+SQL> INSERT INTO Professeur VALUES('3', 'LaForge', 'Geordi', 4);
+
+1 row created.
+
+SQL> INSERT INTO Professeur VALUES('4', 'Troy', 'Deanna', 4);
+
+1 row created.
+
+SQL> 
+SQL> --Cours
+SQL> INSERT INTO Cours VALUES('1','Structure de Données', 3);
+
+1 row created.
+
+SQL> INSERT INTO Cours VALUES('2','Math Discrètes', 3);
+
+1 row created.
+
+SQL> INSERT INTO Cours VALUES('3','Calcul 1', 4);
+
+1 row created.
+
+SQL> INSERT INTO Cours VALUES('4','Chimie Organique', 3);
+
+1 row created.
+
+SQL> INSERT INTO Cours VALUES('5','Génétique 1', 3);
+
+1 row created.
+
+SQL> INSERT INTO Cours VALUES('6','Psychologie', 3);
+
+1 row created.
+
+SQL> INSERT INTO Cours VALUES('7','Réseaux', 3);
+
+1 row created.
+
+SQL> INSERT INTO Cours VALUES('8','Evolution Moléculaire', 3);
+
+1 row created.
+
+SQL> --Prealable
+SQL> INSERT INTO Prealable VALUES('2','1');
+
+1 row created.
+
+SQL> INSERT INTO Prealable VALUES('8','3');
+
+1 row created.
+
+SQL> INSERT INTO Prealable VALUES('7','2');
+
+1 row created.
+
+SQL> 
+SQL> --Etudiants
+SQL> INSERT INTO Etudiant VALUES('1','Olivier','Andrew', 1);
+
+1 row created.
+
+SQL> INSERT INTO Etudiant VALUES('2','Turcotte','Caroline', 1);
+
+1 row created.
+
+SQL> INSERT INTO Etudiant VALUES('3','Murphy','Frank', 2);
+
+1 row created.
+
+SQL> INSERT INTO Etudiant VALUES('4','Murphy','Robin', 3);
+
+1 row created.
+
+SQL> 
+SQL> --Courses in first session
+SQL> --JLP Structures
+SQL> INSERT INTO GroupeCours VALUES('1',1,1,25,1);
+
+1 row created.
+
+SQL> --Riker Structures
+SQL> INSERT INTO GroupeCours VALUES('1',2,1,25,2);
+
+1 row created.
+
+SQL> -- Laforge Discretes
+SQL> INSERT INTO GroupeCours VALUES('2',1,1,25,3);
+
+1 row created.
+
+SQL> --Troy
+SQL> INSERT INTO GroupeCours VALUES('3',1,1,25,4);
+
+1 row created.
+
+SQL> --Laforge Chimie
+SQL> INSERT INTO GroupeCours VALUES('4',1,1,25,3);
+
+1 row created.
+
+SQL> --Troy Génétique
+SQL> INSERT INTO GroupeCours VALUES('5',1,1,25,4);
+
+1 row created.
+
+SQL> --Riker Génétique
+SQL> INSERT INTO GroupeCours VALUES('5',2,1,25,2);
+
+1 row created.
+
+SQL> 
+SQL> --Inscriptions
+SQL> INSERT INTO Inscription VALUES('1','1',1,1,'12/12/2016',null,null);
+
+1 row created.
+
+SQL> INSERT INTO Inscription VALUES('2','1',1,1,'12/12/2016',null,null);
+
+1 row created.
+
+SQL> INSERT INTO Inscription VALUES('3','1',1,1,'12/12/2016',null,null);
+
+1 row created.
+
+SQL> INSERT INTO Inscription VALUES('4','1',1,1,'12/12/2016',null,null);
+
+1 row created.
+
+SQL> 
+SQL> INSERT INTO Inscription VALUES('1','2',1,1,'12/12/2016',null,null);
+
+1 row created.
+
+SQL> INSERT INTO Inscription VALUES('2','2',1,1,'12/12/2016',null,null);
+
+1 row created.
+
+SQL> INSERT INTO Inscription VALUES('3','2',1,1,'12/12/2016',null,null);
+
+1 row created.
+
+SQL> INSERT INTO Inscription VALUES('4','2',1,1,'12/12/2016',null,null);
+
+1 row created.
+
+SQL> 
+SQL> INSERT INTO Inscription VALUES('1','3',1,1,'12/12/2016',null,null);
+
+1 row created.
+
+SQL> INSERT INTO Inscription VALUES('2','3',1,1,'12/12/2016',null,null);
+
+1 row created.
+
+SQL> INSERT INTO Inscription VALUES('3','3',1,1,'12/12/2016',null,null);
+
+1 row created.
+
+SQL> INSERT INTO Inscription VALUES('4','3',1,1,'12/12/2016',null,null);
+
+1 row created.
+
+SQL> INSERT INTO Inscription VALUES('3','5',2,1,'12/12/2016',null,null);
+
+1 row created.
+
+SQL> INSERT INTO Inscription VALUES('3','1',2,2,'12/12/2016',null,null);
+INSERT INTO Inscription VALUES('3','1',2,2,'12/12/2016',null,null)
+*
+ERROR at line 1:
+ORA-02291: integrity constraint (VADER.CEREFGROUPECOURS) violated - parent key
+not found 
+
+
+SQL> /
+INSERT INTO Inscription VALUES('3','1',2,2,'12/12/2016',null,null)
+*
+ERROR at line 1:
+ORA-02291: integrity constraint (VADER.CEREFGROUPECOURS) violated - parent key
+not found 
+
+
+SQL> PROMPT Contenu des tables
+Contenu des tables
+SQL> SELECT * FROM Cours
+  2  /
+
+SIGLE   TITRE                                               NBCREDITS           
+------- -------------------------------------------------- ----------           
+1       Structure de Données                                        3           
+2       Math Discrètes                                              3           
+3       Calcul 1                                                    4           
+4       Chimie Organique                                            3           
+5       Génétique 1                                                 3           
+6       Psychologie                                                 3           
+7       Réseaux                                                     3           
+8       Evolution Moléculaire                                       3           
+
+8 rows selected.
+
+SQL> SELECT * FROM Prealable
+  2  /
+
+SIGLE   SIGLEPR                                                                 
+------- -------                                                                 
+2       1                                                                       
+8       3                                                                       
+7       2                                                                       
+
+SQL> SELECT * FROM SessionUQAM
+  2  /
+
+CODESESSION DATEDEBUT  DATEFIN                                                  
+----------- ---------- ----------                                               
+          1 01/01/2017 01/05/2017                                               
+          2 01/09/2017 30/12/2017                                               
+
+SQL> SELECT * FROM Professeur
+  2  /
+
+CODEP NOM        PRENOM       MINCOURS                                          
+----- ---------- ---------- ----------                                          
+1     Picard     Jean-Luc            4                                          
+2     Riker      Will                4                                          
+3     LaForge    Geordi              4                                          
+4     Troy       Deanna              4                                          
+
+SQL> SELECT * FROM GroupeCours
+  2  /
+
+SIGLE     NOGROUPE CODESESSION MAXINSCRIPTIONS CODEP                            
+------- ---------- ----------- --------------- -----                            
+1                1           1              25 1                                
+1                2           1              25 2                                
+2                1           1              25 3                                
+3                1           1              25 4                                
+4                1           1              25 3                                
+5                1           1              25 4                                
+5                2           1              25 2                                
+
+7 rows selected.
+
+SQL> SELECT * FROM Etudiant
+  2  /
+
+CODEPERMANEN NOM        PRENOM     CODEPROGRAMME                                
+------------ ---------- ---------- -------------                                
+1            Olivier    Andrew                 1                                
+2            Turcotte   Caroline               1                                
+3            Murphy     Frank                  2                                
+4            Murphy     Robin                  3                                
+
+SQL> SELECT * FROM Inscription
+  2  /
+
+CODEPERMANEN SIGLE     NOGROUPE CODESESSION DATEINSCRI DATEABANDO       NOTE    
+------------ ------- ---------- ----------- ---------- ---------- ----------    
+1            1                1           1 12/12/2016                          
+2            1                1           1 12/12/2016                          
+3            1                1           1 12/12/2016                          
+4            1                1           1 12/12/2016                          
+1            2                1           1 12/12/2016                          
+2            2                1           1 12/12/2016                          
+3            2                1           1 12/12/2016                          
+4            2                1           1 12/12/2016                          
+1            3                1           1 12/12/2016                          
+2            3                1           1 12/12/2016                          
+3            3                1           1 12/12/2016                          
+
+CODEPERMANEN SIGLE     NOGROUPE CODESESSION DATEINSCRI DATEABANDO       NOTE    
+------------ ------- ---------- ----------- ---------- ---------- ----------    
+4            3                1           1 12/12/2016                          
+3            5                2           1 12/12/2016                          
+
+13 rows selected.
+
+SQL> ALTER TRIGGER c5 DISABLE;
+
+Trigger altered.
+
+SQL> --Démonstration de la contrainte 1
+SQL> INSERT INTO Professeur VALUES('5', 'Janeway', 'Kathryn', 1);
+INSERT INTO Professeur VALUES('5', 'Janeway', 'Kathryn', 1)
+*
+ERROR at line 1:
+ORA-02290: check constraint (VADER.MINCOURSCONTRAINTE) violated 
+
+
+SQL> 
+SQL> UPDATE Professeur SET minCours = 2 WHERE codeProfesseur = '1';
+UPDATE Professeur SET minCours = 2 WHERE codeProfesseur = '1'
+*
+ERROR at line 1:
+ORA-02290: check constraint (VADER.MINCOURSCONTRAINTE) violated 
+
+
+SQL> 
+SQL> --Démonstration de la Contrainte 2
+SQL> INSERT INTO SessionUQAM VALUES(3,'30/04/2017','01/01/2017');
+Days in semester is not equal to 120!                                           
+
+1 row created.
+
+SQL> 
+SQL> --Démonstration de la Contrainte 3
+SQL> SELECT sigle,noGroupe, codePermanent, codeSession, dateDebut, dateFin, dateAbandon FROM Inscription NATURAL JOIN SessionUQAM;
+
+SIGLE     NOGROUPE CODEPERMANEN CODESESSION DATEDEBUT  DATEFIN    DATEABANDO    
+------- ---------- ------------ ----------- ---------- ---------- ----------    
+1                1 1                      1 01/01/2017 01/05/2017               
+1                1 2                      1 01/01/2017 01/05/2017               
+1                1 3                      1 01/01/2017 01/05/2017               
+1                1 4                      1 01/01/2017 01/05/2017               
+2                1 1                      1 01/01/2017 01/05/2017               
+2                1 2                      1 01/01/2017 01/05/2017               
+2                1 3                      1 01/01/2017 01/05/2017               
+2                1 4                      1 01/01/2017 01/05/2017               
+3                1 1                      1 01/01/2017 01/05/2017               
+3                1 2                      1 01/01/2017 01/05/2017               
+3                1 3                      1 01/01/2017 01/05/2017               
+
+SIGLE     NOGROUPE CODEPERMANEN CODESESSION DATEDEBUT  DATEFIN    DATEABANDO    
+------- ---------- ------------ ----------- ---------- ---------- ----------    
+3                1 4                      1 01/01/2017 01/05/2017               
+5                2 3                      1 01/01/2017 01/05/2017               
+
+13 rows selected.
+
+SQL> 
+SQL> --On utilise une valeur trop grande
+SQL> UPDATE Inscription SET dateAbandon = '05/06/2017' WHERE codePermanent = '1' AND sigle = '2' AND noGroupe = 1 AND codeSession = 1;
+UPDATE Inscription SET dateAbandon = '05/06/2017' WHERE codePermanent = '1' AND sigle = '2' AND noGroupe = 1 AND codeSession = 1
+       *
+ERROR at line 1:
+ORA-20001: Date abandon doit tomber entre les dates de la session
+ORA-06512: at "VADER.C3", line 8
+ORA-04088: error during execution of trigger 'VADER.C3' 
+
+
+SQL> 
+SQL> --On utilise une valeur trop petite
+SQL> UPDATE Inscription SET dateAbandon = '11/12/2016' WHERE codePermanent = '1' AND sigle = '2' AND noGroupe = 1 AND codeSession = 1;
+UPDATE Inscription SET dateAbandon = '11/12/2016' WHERE codePermanent = '1' AND sigle = '2' AND noGroupe = 1 AND codeSession = 1
+       *
+ERROR at line 1:
+ORA-20001: Date abandon doit tomber entre les dates de la session
+ORA-06512: at "VADER.C3", line 8
+ORA-04088: error during execution of trigger 'VADER.C3' 
+
+
+SQL> 
+SQL> --On Démontre une valeur qui est bonne
+SQL> UPDATE Inscription SET dateAbandon = '05/04/2017' WHERE codePermanent = '1' AND sigle = '2' AND noGroupe = 1 AND codeSession = 1;
+
+1 row updated.
+
+SQL> 
+SQL> 
+SQL> --Démonstration de la Contrainte 4
+SQL> 
+SQL> UPDATE Inscription SET dateInscription = '02/05/2017' WHERE codePermanent = '4' AND sigle ='3' AND noGroupe = 1 AND codeSession = 1;
+Date doit être inférieure à la date de début                                    
+01/01/2017                                                                      
+UPDATE Inscription SET dateInscription = '02/05/2017' WHERE codePermanent = '4' AND sigle ='3' AND noGroupe = 1 AND codeSession = 1
+       *
+ERROR at line 1:
+ORA-20001: illegal date
+ORA-06512: at "VADER.C4", line 10
+ORA-04088: error during execution of trigger 'VADER.C4' 
+
+
+SQL> 
+SQL> 
+SQL> --Démonstration de la Contrainte 5
+SQL> ALTER TRIGGER c5 ENABLE;
+
+Trigger altered.
+
+SQL> UPDATE Inscription SET sigle = '3' WHERE codePermanent = '4' AND sigle ='3' AND noGroupe = 1 AND codeSession = 1;
+UPDATE Inscription SET sigle = '3' WHERE codePermanent = '4' AND sigle ='3' AND noGroupe = 1 AND codeSession = 1
+       *
+ERROR at line 1:
+ORA-20001: You cannot do that
+ORA-06512: at "VADER.C5", line 2
+ORA-04088: error during execution of trigger 'VADER.C5' 
+
+
+SQL> 
+SQL> ALTER TRIGGER c5 DISABLE;
+
+Trigger altered.
+
+SQL> 
+SQL> --Démonstration de la Contrainte 6
+SQL> --Inserer valeurs initiales dans le bdd
+SQL> UPDATE Inscription SET note = 99 WHERE codePermanent = '1' AND sigle = '2' AND noGroupe = 1;
+Absence lors de l’épreuve                                                       
+
+1 row updated.
+
+SQL> UPDATE Inscription SET note = 80 WHERE codePermanent = '2' AND sigle = '2' AND noGroupe = 1;
+Absence lors de l’épreuve                                                       
+
+1 row updated.
+
+SQL> UPDATE Inscription SET note = 80 WHERE codePermanent = '3' AND sigle = '2' AND noGroupe = 1;
+Absence lors de l’épreuve                                                       
+
+1 row updated.
+
+SQL> UPDATE Inscription SET note = 95 WHERE codePermanent = '1' AND sigle = '1' AND noGroupe = 1;
+Absence lors de l’épreuve                                                       
+
+1 row updated.
+
+SQL> 
+SQL> SELECT * FROM Inscription;
+
+CODEPERMANEN SIGLE     NOGROUPE CODESESSION DATEINSCRI DATEABANDO       NOTE    
+------------ ------- ---------- ----------- ---------- ---------- ----------    
+1            1                1           1 12/12/2016                    95    
+2            1                1           1 12/12/2016                          
+3            1                1           1 12/12/2016                          
+4            1                1           1 12/12/2016                          
+1            2                1           1 12/12/2016 05/04/2017         99    
+2            2                1           1 12/12/2016                    80    
+3            2                1           1 12/12/2016                    80    
+4            2                1           1 12/12/2016                          
+1            3                1           1 12/12/2016                          
+2            3                1           1 12/12/2016                          
+3            3                1           1 12/12/2016                          
+
+CODEPERMANEN SIGLE     NOGROUPE CODESESSION DATEINSCRI DATEABANDO       NOTE    
+------------ ------- ---------- ----------- ---------- ---------- ----------    
+4            3                1           1 12/12/2016                          
+3            5                2           1 12/12/2016                          
+
+13 rows selected.
+
+SQL> UPDATE Inscription SET note = 140 WHERE codePermanent = '1' AND sigle = '2' AND noGroupe = 1;
+Valeur changé pour être <= 1.3*valeur de mise à jour                            
+
+1 row updated.
+
+SQL> SELECT * FROM Inscription;
+
+CODEPERMANEN SIGLE     NOGROUPE CODESESSION DATEINSCRI DATEABANDO       NOTE    
+------------ ------- ---------- ----------- ---------- ---------- ----------    
+1            1                1           1 12/12/2016                    95    
+2            1                1           1 12/12/2016                          
+3            1                1           1 12/12/2016                          
+4            1                1           1 12/12/2016                          
+1            2                1           1 12/12/2016 05/04/2017        129    
+2            2                1           1 12/12/2016                    80    
+3            2                1           1 12/12/2016                    80    
+4            2                1           1 12/12/2016                          
+1            3                1           1 12/12/2016                          
+2            3                1           1 12/12/2016                          
+3            3                1           1 12/12/2016                          
+
+CODEPERMANEN SIGLE     NOGROUPE CODESESSION DATEINSCRI DATEABANDO       NOTE    
+------------ ------- ---------- ----------- ---------- ---------- ----------    
+4            3                1           1 12/12/2016                          
+3            5                2           1 12/12/2016                          
+
+13 rows selected.
+
+SQL> 
+SQL> SPOOL OFF;
