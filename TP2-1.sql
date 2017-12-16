@@ -1,4 +1,8 @@
 SPOOL TP2-1.out
+--INF 3180 TP2
+--Partie 2 et 3
+--Réalisé par Chris Kooistra
+--KOOC08098307
 PROMPT Creation des tables
 
 SET ECHO ON
@@ -179,6 +183,10 @@ END;
 /
 COMMIT
 /
+--SPOOL Fermé durant l'insertion des valeurs dans la bdd pour initialisation
+SPOOL OFF
+
+-----------------------------------------------------------------------------
 
 INSERT INTO SessionUQAM VALUES(1,'01/01/2017','01/05/2017');
 INSERT INTO SessionUQAM VALUES(2,'01/09/2017','30/12/2017');
@@ -225,6 +233,19 @@ INSERT INTO GroupeCours VALUES('5',1,1,25,4);
 --Riker Génétique
 INSERT INTO GroupeCours VALUES('5',2,1,25,2); 
 
+INSERT INTO GroupeCours VALUES('1',1,2,25,1); 
+--Riker Structures
+INSERT INTO GroupeCours VALUES('1',2,2,25,2); 
+-- Laforge Discretes
+INSERT INTO GroupeCours VALUES('2',1,2,25,3); 
+--Troy
+INSERT INTO GroupeCours VALUES('3',1,2,25,4); 
+--Laforge Chimie
+INSERT INTO GroupeCours VALUES('4',1,2,25,3); 
+--Troy Génétique
+INSERT INTO GroupeCours VALUES('5',1,2,25,4); 
+--Riker Génétique
+INSERT INTO GroupeCours VALUES('5',2,1,25,2); 
 --Inscriptions
 INSERT INTO Inscription VALUES('1','1',1,1,'12/12/2016',null,null);
 INSERT INTO Inscription VALUES('2','1',1,1,'12/12/2016',null,null);
@@ -258,6 +279,11 @@ SELECT * FROM Etudiant
 /
 SELECT * FROM Inscription
 /
+
+SPOOL TP2-1.out APPEND;
+----------------------------------------------------------------------------------
+--SPOOL Recommencé
+
 ALTER TRIGGER c5 DISABLE;
 --Démonstration de la contrainte 1
 INSERT INTO Professeur VALUES('5', 'Janeway', 'Kathryn', 1);
