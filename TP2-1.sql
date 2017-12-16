@@ -1,6 +1,6 @@
 SPOOL TP2-1.out
 --INF 3180 TP2
---Partie 2 et 3
+--Partie 1
 --Réalisé par Chris Kooistra
 --KOOC08098307
 PROMPT Creation des tables
